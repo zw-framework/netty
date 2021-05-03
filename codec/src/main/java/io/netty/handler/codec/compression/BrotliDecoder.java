@@ -17,7 +17,7 @@ package io.netty.handler.codec.compression;
 
 import com.aayushatharva.brotli4j.decoder.DecoderJNI;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 
@@ -42,7 +42,14 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
         }
     }
 
-    private State decompress(ByteBuf input, List<Object> output) {
+    private ByteBuf pull(ByteBufAllocator alloc) {
+        ByteBuffer nativeBuffer = decoder.pull();
+        ByteBuf copy = alloc.buffer(nativeBuffer.remaining());
+        copy.writeBytes(nativeBuffer);
+        return copy;
+    }
+
+    private State decompress(ByteBuf input, List<Object> output, ByteBufAllocator alloc) {
         for (;;) {
             switch (decoder.getStatus()) {
                 case DONE:
@@ -54,7 +61,7 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
 
                 case NEEDS_MORE_INPUT:
                     if (decoder.hasOutput()) {
-                        output.add(Unpooled.wrappedBuffer(decoder.pull()));
+                        output.add(pull(alloc));
                     }
 
                     if (!input.isReadable()) {
@@ -68,7 +75,7 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
                     break;
 
                 case NEEDS_MORE_OUTPUT:
-                    output.add(Unpooled.wrappedBuffer(decoder.pull()));
+                    output.add(pull(alloc));
                     break;
 
                 default:
@@ -98,7 +105,7 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
         }
 
         try {
-            State state = decompress(in, out);
+            State state = decompress(in, out, ctx.alloc());
             if (state == State.DONE) {
                 destroy();
             } else if (state == State.ERROR) {
