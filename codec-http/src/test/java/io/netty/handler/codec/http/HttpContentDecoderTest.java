@@ -23,6 +23,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.CodecException;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.compression.Brotli;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
 import io.netty.handler.codec.compression.ZlibDecoder;
 import io.netty.handler.codec.compression.ZlibEncoder;
@@ -186,6 +187,7 @@ public class HttpContentDecoderTest {
 
     @Test
     public void testResponseBrotliDecompression() {
+        assertTrue("Brotli should be available on this platform", Brotli.isAvailable());
         HttpResponseDecoder decoder = new HttpResponseDecoder();
         HttpContentDecoder decompressor = new HttpContentDecompressor();
         HttpObjectAggregator aggregator = new HttpObjectAggregator(Integer.MAX_VALUE);
@@ -201,8 +203,13 @@ public class HttpContentDecoderTest {
         Object o = channel.readInbound();
         assertThat(o, is(instanceOf(FullHttpResponse.class)));
         FullHttpResponse resp = (FullHttpResponse) o;
-        assertEquals(SAMPLE_STRING.length(), resp.headers().getInt(HttpHeaderNames.CONTENT_LENGTH).intValue());
-        assertEquals(SAMPLE_STRING, resp.content().toString(CharsetUtil.UTF_8));
+        assertNull("Content-Encoding header should be removed", resp.headers().get(HttpHeaderNames.CONTENT_ENCODING));
+        assertEquals("Content-Length header should match uncompressed string's length",
+          SAMPLE_STRING.length(),
+          resp.headers().getInt(HttpHeaderNames.CONTENT_LENGTH).intValue());
+        assertEquals("Response body should match uncompressed string",
+          SAMPLE_STRING,
+          resp.content().toString(CharsetUtil.UTF_8));
         resp.release();
 
         assertHasInboundMessages(channel, false);
@@ -212,6 +219,7 @@ public class HttpContentDecoderTest {
 
     @Test
     public void testResponseChunksBrotliDecompression() {
+        assertTrue("Brotli should be available on this platform", Brotli.isAvailable());
         HttpResponseDecoder decoder = new HttpResponseDecoder();
         HttpContentDecoder decompressor = new HttpContentDecompressor();
         HttpObjectAggregator aggregator = new HttpObjectAggregator(Integer.MAX_VALUE);
@@ -239,8 +247,12 @@ public class HttpContentDecoderTest {
         Object o = channel.readInbound();
         assertThat(o, is(instanceOf(FullHttpResponse.class)));
         FullHttpResponse resp = (FullHttpResponse) o;
-        assertEquals(SAMPLE_STRING.length(), resp.headers().getInt(HttpHeaderNames.CONTENT_LENGTH).intValue());
-        assertEquals(SAMPLE_STRING, resp.content().toString(CharsetUtil.UTF_8));
+        assertEquals("Content-Length header should match uncompressed string's length",
+          SAMPLE_STRING.length(),
+          resp.headers().getInt(HttpHeaderNames.CONTENT_LENGTH).intValue());
+        assertEquals("Response body should match uncompressed string",
+          SAMPLE_STRING,
+          resp.content().toString(CharsetUtil.UTF_8));
         resp.release();
 
         assertHasInboundMessages(channel, false);
