@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
+
 package io.netty.handler.codec.compression;
 
 import com.aayushatharva.brotli4j.Brotli4jLoader;
