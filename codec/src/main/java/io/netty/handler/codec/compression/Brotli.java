@@ -48,10 +48,20 @@ public final class Brotli {
         }
     }
 
+    /**
+     *
+     * @return true when brotli4j is in the classpath
+     * and native library is available on this platform and could be loaded
+     */
     public static boolean isAvailable() {
         return CNFE == null && Brotli4jLoader.isAvailable();
     }
 
+    /**
+     * Throws when brotli support is missinf from the classpath or is unavailable on this platform
+     * @throws Throwable a ClassNotFoundException if brotli4j is missing
+     * or a UnsatisfiedLinkError if brotli4j native lib can't be loaded
+     */
     public static void ensureAvailability() throws Throwable {
         if (CNFE != null) {
             throw CNFE;
