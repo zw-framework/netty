@@ -45,7 +45,7 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
 
     private final int inputBufferSize;
     private DecoderJNI.Wrapper decoder;
-    private boolean destroyed = false;
+    private boolean destroyed;
 
     public BrotliDecoder() {
         this(8 * 1024);
