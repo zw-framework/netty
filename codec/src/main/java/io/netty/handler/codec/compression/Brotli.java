@@ -59,7 +59,7 @@ public final class Brotli {
     }
 
     /**
-     * Throws when brotli support is missinf from the classpath or is unavailable on this platform
+     * Throws when brotli support is missing from the classpath or is unavailable on this platform
      * @throws Throwable a ClassNotFoundException if brotli4j is missing
      * or a UnsatisfiedLinkError if brotli4j native lib can't be loaded
      */

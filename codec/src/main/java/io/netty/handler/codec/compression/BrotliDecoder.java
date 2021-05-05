@@ -48,16 +48,24 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
     private DecoderJNI.Wrapper decoder;
     private boolean destroyed;
 
+    /**
+     * Creates a new BrotliDecoder with a default 8kB input buffer
+     */
     public BrotliDecoder() {
         this(8 * 1024);
     }
 
+    /**
+     * Creates a new BrotliDecoder
+     * @param inputBufferSize desired size of the input buffer in kB
+     */
     public BrotliDecoder(int inputBufferSize) {
         this.inputBufferSize = inputBufferSize;
     }
 
     private ByteBuf pull(ByteBufAllocator alloc) {
         ByteBuffer nativeBuffer = decoder.pull();
+        // nativeBuffer actually wraps brotli's internal buffer so we need to copy its content
         ByteBuf copy = alloc.buffer(nativeBuffer.remaining());
         copy.writeBytes(nativeBuffer);
         return copy;
@@ -129,6 +137,7 @@ public final class BrotliDecoder extends ByteToMessageDecoder {
             if (state == State.DONE) {
                 destroy();
             } else if (state == State.ERROR) {
+                destroy();
                 throw new DecompressionException("Brotli stream corrupted");
             }
         } catch (Exception e) {

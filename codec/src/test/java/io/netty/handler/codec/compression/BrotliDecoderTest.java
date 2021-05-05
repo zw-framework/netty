@@ -24,7 +24,7 @@ import java.io.ByteArrayOutputStream;
 
 public class BrotliDecoderTest extends AbstractDecoderTest {
 
-  protected BrotliDecoderTest() throws Exception {
+  public BrotliDecoderTest() throws Exception {
     Brotli4jLoader.ensureAvailability();
   }
 
