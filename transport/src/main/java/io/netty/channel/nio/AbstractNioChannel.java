@@ -32,6 +32,8 @@ import io.netty.util.ReferenceCounted;
 import io.netty.util.concurrent.Future;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
+import sun.misc.Unsafe;
+import sun.nio.ch.SelectorProviderImpl;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -50,8 +52,11 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
-    private final SelectableChannel ch;
-    protected final int readInterestOp;
+    /**
+     * {@link SelectorProviderImpl#openServerSocketChannel()}
+     */
+    private final SelectableChannel ch;        // 服务端ServerSocketChannelImpl，或客户端SocketChannelImpl
+    protected final int readInterestOp;  //感兴趣的事件，在doBeginRead()方法中处理. NioServerSocketChannel默认为SelectionKey.OP_ACCEPT；NioSocketChannel默认为SelectionKey.OP_READ
     volatile SelectionKey selectionKey;
     boolean readPending;
     private final Runnable clearReadPendingRunnable = new Runnable() {
@@ -81,7 +86,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
-            ch.configureBlocking(false);
+            ch.configureBlocking(false);  // 设置SelectableChannel为非阻塞
         } catch (IOException e) {
             try {
                 ch.close();
@@ -302,7 +307,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             // Regardless if the connection attempt was cancelled, channelActive() event should be triggered,
             // because what happened is what happened.
             if (!wasActive && active) {
-                pipeline().fireChannelActive();
+                pipeline().fireChannelActive();  //激活channel
             }
 
             // If a user cancelled the connection attempt, close the channel, which is followed by channelInactive().
@@ -372,12 +377,18 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         return loop instanceof NioEventLoop;
     }
 
+    /**
+     * 负责将 Channel 注册到多路复用器 Selector
+     * 将serverSocketChannel或SocketChannel注册到Selector选择器中
+     * @throws Exception
+     */
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;
         for (;;) {
             try {
-                selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+                // 对ops字段设置为0， selectionKey.interestOps()=0.，也就是对任何事件都不感兴趣。真正的设置读操作位是在 doBeginRead() 方法中
+                selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);  // 注册. 参数三将netty的channel绑定到jdk底层的channel作为attachment。即NioServerSocketChannel/NioSocketChannel对象为attachment
                 return;
             } catch (CancelledKeyException e) {
                 if (!selected) {
@@ -408,9 +419,11 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         }
 
         readPending = true;
-
+        // 获得感兴趣的事件
         final int interestOps = selectionKey.interestOps();
+        // 判断是不是对任何事件都不监听
         if ((interestOps & readInterestOp) == 0) {
+            // 将之前的SelectionKey.OP_ACCEPT事件(服务端) 或 SelectionKey.OP_READ(客户端)注册, readInterest代表可以读取一个新连接的意思
             selectionKey.interestOps(interestOps | readInterestOp);
         }
     }

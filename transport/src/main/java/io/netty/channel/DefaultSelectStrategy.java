@@ -25,6 +25,13 @@ final class DefaultSelectStrategy implements SelectStrategy {
 
     private DefaultSelectStrategy() { }
 
+    /**
+     *
+     * @param selectSupplier   {@link io.netty.channel.nio.NioEventLoop.selectNowSupplier}
+     * @param hasTasks   根据是否有任务，返回值。
+     * @return   有任务时，非阻塞，返回的int值表示有多少通道已经就绪；或 返回-1
+     * @throws Exception
+     */
     @Override
     public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) throws Exception {
         return hasTasks ? selectSupplier.get() : SelectStrategy.SELECT;

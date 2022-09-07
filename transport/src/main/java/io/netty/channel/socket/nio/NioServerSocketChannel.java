@@ -92,7 +92,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     /**
      * Create a new instance using the given {@link ServerSocketChannel}.
      */
-    public NioServerSocketChannel(ServerSocketChannel channel) {
+    public NioServerSocketChannel(ServerSocketChannel channel) {  // channel -> ServerSocketChannelImpl
         super(null, channel, SelectionKey.OP_ACCEPT);
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
     }
@@ -137,7 +137,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     @SuppressJava6Requirement(reason = "Usage guarded by java version check")
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
-        if (PlatformDependent.javaVersion() >= 7) {
+        if (PlatformDependent.javaVersion() >= 7) {   // 将地址绑定到ServerSocketChannel
             javaChannel().bind(localAddress, config.getBacklog());
         } else {
             javaChannel().socket().bind(localAddress, config.getBacklog());
@@ -151,11 +151,11 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
-        SocketChannel ch = SocketUtils.accept(javaChannel());
+        SocketChannel ch = SocketUtils.accept(javaChannel());  // 通过ServerSocketChannel获取与客户端通信的SocketChannel  {@link sun.nio.ch.ServerSocketChannelImpl.accept()}
 
         try {
             if (ch != null) {
-                buf.add(new NioSocketChannel(this, ch));
+                buf.add(new NioSocketChannel(this, ch));   //NioSocketChannel封装了NioServerSocketChannel，即包含该对象参数，如处理线程等
                 return 1;
             }
         } catch (Throwable t) {

@@ -15,18 +15,9 @@
  */
 package io.netty.bootstrap;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelConfig;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ServerChannel;
+import io.netty.channel.*;
+import io.netty.channel.nio.AbstractNioMessageChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.AttributeKey;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.logging.InternalLogger;
@@ -51,7 +42,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
-    private volatile EventLoopGroup childGroup;
+    private volatile EventLoopGroup childGroup;   // 处理读写事件的线程池
     private volatile ChannelHandler childHandler;
 
     public ServerBootstrap() { }
@@ -132,6 +123,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         setChannelOptions(channel, newOptionsArray(), logger);
         setAttributes(channel, newAttributesArray());
 
+        /**
+         * {@link DefaultChannelPipeline}
+         */
         ChannelPipeline p = channel.pipeline();
 
         final EventLoopGroup currentChildGroup = childGroup;
@@ -150,7 +144,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
                 ch.eventLoop().execute(new Runnable() {
                     @Override
-                    public void run() {
+                    public void run() {  //添加任务到线程池
+                        // 添加处理客户端连接的Handler(ServerBootstrapAcceptor)到pipeline
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
@@ -172,10 +167,16 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * 特殊的ChannelHandler，它是Netty服务端用来接收客户端连接的核心类.
+     *
+     * ServerBootstrap在初始化ServerSocketChannel时，会往它的Pipeline中添加ServerBootstrapAcceptor
+     * {@link ServerBootstrap#init(io.netty.channel.Channel)}
+     */
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
-        private final EventLoopGroup childGroup;
-        private final ChannelHandler childHandler;
+        private final EventLoopGroup childGroup; // Reactor模型中的WorkerGroup
+        private final ChannelHandler childHandler;  // 客户端Channel的ChannelHandler
         private final Entry<ChannelOption<?>, Object>[] childOptions;
         private final Entry<AttributeKey<?>, Object>[] childAttrs;
         private final Runnable enableAutoReadTask;
@@ -201,18 +202,28 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             };
         }
 
+        /**
+         * 当NioEventLoop检测到有OP_ACCEPT事件到达时会执行NioMessageUnsafe.read()方法{@link AbstractNioMessageChannel.NioMessageUnsafe#read()}，
+         * 它会调用JDK底层的API接收客户端连接，并把它作为msg触发ChannelRead回调，这样ServerBootstrapAcceptor就可以拿到客户端连接，
+         * 帮助它进行初始化并注册到WorkerGroup中
+         *
+         * @param ctx
+         * @param msg  当与客户端连接成功后，服务端创建的NioSocketChannel  {@link NioServerSocketChannel#doReadMessages(java.util.List)}
+         */
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             final Channel child = (Channel) msg;
 
-            child.pipeline().addLast(childHandler);
+            child.pipeline().addLast(childHandler);  // 为一个客户端连接绑定childHandler处理器
 
             setChannelOptions(child, childOptions, logger);
             setAttributes(child, childAttrs);
 
             try {
-                childGroup.register(child).addListener(new ChannelFutureListener() {
+                // 将建立的连接设置为准备读，并注册到选择器上
+                // 从worker线程池选择一个线程，将NioSocketChannel注册到Selector.
+                childGroup.register(child).addListener(new ChannelFutureListener() {  // 注册客户端连接NioSocketChannel
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (!future.isSuccess()) {

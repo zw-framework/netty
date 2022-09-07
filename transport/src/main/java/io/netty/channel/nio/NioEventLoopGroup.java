@@ -70,7 +70,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
     }
 
     public NioEventLoopGroup(int nThreads, Executor executor) {
-        this(nThreads, executor, SelectorProvider.provider());
+        this(nThreads, executor, SelectorProvider.provider());   // SelectorProvider.provider()：创建SelectorProvider对象。 默认实现：sun.nio.ch.DefaultSelectorProvider.create() -> WindowsSelectorProvider
     }
 
     /**
@@ -179,8 +179,8 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         if (argsLength > 4) {
             tailTaskQueueFactory = (EventLoopTaskQueueFactory) args[4];
         }
-        return new NioEventLoop(this, executor, selectorProvider,
+        return new NioEventLoop(this, executor, selectorProvider,       // selectorProvider->WindowsSelectorProvider
                 selectStrategyFactory.newSelectStrategy(),
-                rejectedExecutionHandler, taskQueueFactory, tailTaskQueueFactory);
+                rejectedExecutionHandler, taskQueueFactory, tailTaskQueueFactory);          // 创建线程执行器NioEventLoop
     }
 }

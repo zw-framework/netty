@@ -69,6 +69,8 @@ import java.util.Arrays;
  * between the original data and the copied buffer.  Various copy methods are
  * provided and their name is all {@code copiedBuffer()}.  It is also convenient
  * to use this operation to merge multiple buffers into one buffer.
+ *
+ * 专门用来操作缓冲区(即 Netty 的数据容器)的工具类
  */
 public final class Unpooled {
 

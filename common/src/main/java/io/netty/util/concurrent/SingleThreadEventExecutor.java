@@ -361,6 +361,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
+     * 循环执行完队列所有任务
      * Poll all tasks from the task queue and run them via {@link Runnable#run()} method.
      *
      * @return {@code true} if and only if at least one task was run
@@ -467,7 +468,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         long runTasks = 0;
         long lastExecutionTime;
         for (;;) {
-            safeExecute(task);
+            safeExecute(task);  // 执行任务
 
             runTasks ++;
 
@@ -833,8 +834,13 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void execute(Runnable task, boolean immediate) {
         boolean inEventLoop = inEventLoop();
-        addTask(task);
-        if (!inEventLoop) {
+        addTask(task); // 添加task到队列
+        if (!inEventLoop) {   // 当前还没有创建处理任务的线程
+            /**
+             * 通过executor创建线程，阻塞selector连接。循环处理事件和队列任务
+             * {@link SingleThreadEventExecutor#doStartThread()}
+             * {@link NioEventLoop#run()}
+             */
             startThread();
             if (isShutdown()) {
                 boolean reject = false;
@@ -994,7 +1000,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
-                    SingleThreadEventExecutor.this.run();
+                    SingleThreadEventExecutor.this.run();  //io.netty.channel.nio.NioEventLoop.run()
                     success = true;
                 } catch (Throwable t) {
                     logger.warn("Unexpected exception from an event executor: ", t);

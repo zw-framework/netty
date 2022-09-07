@@ -213,7 +213,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     static void invokeChannelActive(final AbstractChannelHandlerContext next) {
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
-            next.invokeChannelActive();
+            next.invokeChannelActive();   //next->io.netty.channel.DefaultChannelPipeline.HeadContext
         } else {
             executor.execute(new Runnable() {
                 @Override
@@ -227,6 +227,10 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     private void invokeChannelActive() {
         if (invokeHandler()) {
             try {
+                /**
+                 * 执行{@link DefaultChannelPipeline.HeadContext#channelActive(io.netty.channel.ChannelHandlerContext)}
+                 * doBeginRead
+                 */
                 ((ChannelInboundHandler) handler()).channelActive(this);
             } catch (Throwable t) {
                 invokeExceptionCaught(t);
@@ -530,7 +534,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         final AbstractChannelHandlerContext next = findContextOutbound(MASK_CONNECT);
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
-            next.invokeConnect(remoteAddress, localAddress, promise);
+            next.invokeConnect(remoteAddress, localAddress, promise);   //连接服务端。 io.netty.channel.DefaultChannelPipeline.HeadContext.connect
         } else {
             safeExecute(executor, new Runnable() {
                 @Override
@@ -683,6 +687,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     private void invokeRead() {
         if (invokeHandler()) {
             try {
+                /**
+                 * 执行 {@link DefaultChannelPipeline.HeadContext#read(io.netty.channel.ChannelHandlerContext) }
+                 */
                 ((ChannelOutboundHandler) handler()).read(this);
             } catch (Throwable t) {
                 invokeExceptionCaught(t);

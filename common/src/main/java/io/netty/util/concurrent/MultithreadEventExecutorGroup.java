@@ -15,6 +15,8 @@
  */
 package io.netty.util.concurrent;
 
+import io.netty.channel.nio.NioEventLoopGroup;
+
 import static io.netty.util.internal.ObjectUtil.checkPositive;
 
 import java.util.Collections;
@@ -36,7 +38,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
     private final Set<EventExecutor> readonlyChildren;
     private final AtomicInteger terminatedChildren = new AtomicInteger();
     private final Promise<?> terminationFuture = new DefaultPromise(GlobalEventExecutor.INSTANCE);
-    private final EventExecutorChooserFactory.EventExecutorChooser chooser;
+    private final EventExecutorChooserFactory.EventExecutorChooser chooser;    // 执行线程选择器.
 
     /**
      * Create a new instance.
@@ -81,6 +83,10 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
+                /**
+                 * 创建NioEventLoop
+                 * {@link NioEventLoopGroup#newChild(java.util.concurrent.Executor, java.lang.Object...)}
+                 */
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
@@ -108,7 +114,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             }
         }
 
-        chooser = chooserFactory.newChooser(children);
+        chooser = chooserFactory.newChooser(children);  // 创建执行线程选择器.
 
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
             @Override
@@ -134,7 +140,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
 
     @Override
     public EventExecutor next() {
-        return chooser.next();
+        return chooser.next();  // 使用选择器，选择一个EventLoop处理业务
     }
 
     @Override

@@ -28,6 +28,9 @@ import static io.netty.util.internal.ObjectUtil.checkNotNull;
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 import static io.netty.util.internal.PlatformDependent.throwException;
 
+/**
+ * 测试
+ */
 @UnstableApi
 public abstract class AbstractCoalescingBufferQueue {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractCoalescingBufferQueue.class);

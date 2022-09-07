@@ -81,7 +81,7 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
         return buf;
     }
 
-    private final boolean directByDefault;
+    private final boolean directByDefault;  //默认是否为直接内存。true->直接内存；false->堆内存
     private final ByteBuf emptyBuf;
 
     /**

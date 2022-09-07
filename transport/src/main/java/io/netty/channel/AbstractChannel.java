@@ -71,8 +71,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
         id = newId();
-        unsafe = newUnsafe();
-        pipeline = newChannelPipeline();
+        unsafe = newUnsafe();      // 创建Unsafe对象
+        pipeline = newChannelPipeline();  // 创建ChannelPipeline
     }
 
     /**
@@ -462,7 +462,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         }
 
         @Override
-        public final void register(EventLoop eventLoop, final ChannelPromise promise) {
+        public final void register(EventLoop eventLoop, final ChannelPromise promise) {  //客户端注册
             ObjectUtil.checkNotNull(eventLoop, "eventLoop");
             if (isRegistered()) {
                 promise.setFailure(new IllegalStateException("registered to an event loop already"));
@@ -474,13 +474,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
-            AbstractChannel.this.eventLoop = eventLoop;
+            AbstractChannel.this.eventLoop = eventLoop;   // 为NioServerSocketChannel中的eventLoop属性赋值。
 
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
-                    eventLoop.execute(new Runnable() {
+                    eventLoop.execute(new Runnable() {  // 使用线程注册NioServerSocketChannel到Selector
                         @Override
                         public void run() {
                             register0(promise);
@@ -497,7 +497,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
-        private void register0(ChannelPromise promise) {
+        /**
+         *
+         * @param promise
+         */
+        private void register0(ChannelPromise promise) {  //注册。
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
                 // call was outside of the eventLoop
@@ -505,7 +509,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
-                doRegister();
+                doRegister();  // 1. 注册到Selector
                 neverRegistered = false;
                 registered = true;
 
@@ -513,13 +517,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 // user may already fire events through the pipeline in the ChannelFutureListener.
                 pipeline.invokeHandlerAddedIfNeeded();
 
-                safeSetSuccess(promise);
+                safeSetSuccess(promise);   // 与服务端建立连接。  通过ChannelOutboundHandler.connect()连接服务端
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
                 if (isActive()) {
                     if (firstRegistration) {
-                        pipeline.fireChannelActive();
+                        pipeline.fireChannelActive();   // 2. 修改事件状态为：可读 SelectionKey.OP_READ
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
                         // again so that we process inbound data.
@@ -559,7 +563,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             boolean wasActive = isActive();
             try {
-                doBind(localAddress);
+                doBind(localAddress);   // 1. 端口绑定
             } catch (Throwable t) {
                 safeSetFailure(promise, t);
                 closeIfClosed();
@@ -570,9 +574,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 invokeLater(new Runnable() {
                     @Override
                     public void run() {
-                        pipeline.fireChannelActive();
+                        pipeline.fireChannelActive();   // 2. 激活监听事件，监听客户端的SelectionKey.OP_ACCEPT事件
                     }
-                });
+                });  //
             }
 
             safeSetSuccess(promise);

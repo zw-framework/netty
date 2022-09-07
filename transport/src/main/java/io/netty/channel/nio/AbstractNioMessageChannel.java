@@ -63,11 +63,17 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
 
         private final List<Object> readBuf = new ArrayList<Object>();
 
+        /**
+         * NioEventLoop.processSelectedKey() 当Channel有 OP_READ | OP_ACCEPT 事件时调用该方法。
+         * 对于服务端Channel来说，就是 OP_ACCEPT.
+         * {@link NioEventLoop#processSelectedKey(java.nio.channels.SelectionKey, io.netty.channel.nio.AbstractNioChannel)}
+         */
         @Override
         public void read() {
             assert eventLoop().inEventLoop();
             final ChannelConfig config = config();
             final ChannelPipeline pipeline = pipeline();
+            // 接收对端数据时，ByteBuf的分配策略，基于历史数据动态调整初始化大小，避免太大浪费空间，太小又会频繁扩容
             final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
             allocHandle.reset(config);
 
@@ -76,6 +82,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             try {
                 try {
                     do {
+                        // 对于ServerSocketChannel来说，就是创建一个客户端NioSocketChannel，添加到readBuf，用于与客户端进行通信
                         int localRead = doReadMessages(readBuf);
                         if (localRead == 0) {
                             break;
@@ -84,7 +91,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                             closed = true;
                             break;
                         }
-
+                        // 递增已读取的消息数量
                         allocHandle.incMessagesRead(localRead);
                     } while (continueReading(allocHandle));
                 } catch (Throwable t) {
@@ -92,12 +99,18 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 }
 
                 int size = readBuf.size();
-                for (int i = 0; i < size; i ++) {
+                for (int i = 0; i < size; i ++) {  // 循环读取每个客户端数据
                     readPending = false;
+                    /**
+                     * 通过pipeline传播ChannelRead事件。   readBuf.get(i)为NioSocketChannel
+                     * {@link io.netty.bootstrap.ServerBootstrap.ServerBootstrapAcceptor#channelRead(io.netty.channel.ChannelHandlerContext, java.lang.Object)}
+                     */
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();
+                // 读取完毕的回调，有的Handle会根据本次读取的总字节数，自适应调整下次应该分配的缓冲区大小
                 allocHandle.readComplete();
+                // 通过pipeline传播ChannelReadComplete事件
                 pipeline.fireChannelReadComplete();
 
                 if (exception != null) {

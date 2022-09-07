@@ -88,7 +88,7 @@ public final class SocketUtils {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
                 @Override
                 public Boolean run() throws IOException {
-                    return socketChannel.connect(remoteAddress);
+                    return socketChannel.connect(remoteAddress); //客户端连接服务端
                 }
             });
         } catch (PrivilegedActionException e) {
@@ -116,7 +116,7 @@ public final class SocketUtils {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<SocketChannel>() {
                 @Override
                 public SocketChannel run() throws IOException {
-                    return serverSocketChannel.accept();
+                    return serverSocketChannel.accept();   // 获取SocketChannel
                 }
             });
         } catch (PrivilegedActionException e) {

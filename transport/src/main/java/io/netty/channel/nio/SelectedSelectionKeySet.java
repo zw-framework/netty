@@ -15,12 +15,19 @@
  */
 package io.netty.channel.nio;
 
+import sun.nio.ch.SelectorImpl;
+
 import java.nio.channels.SelectionKey;
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * 用于替换SelectorImpl中的selectedKeys和publicSelectedKeys属性类型，将Set替换为数组。提升性能
+ * {@link NioEventLoop#openSelector()}
+ * {@link SelectorImpl}
+ */
 final class SelectedSelectionKeySet extends AbstractSet<SelectionKey> {
 
     SelectionKey[] keys;

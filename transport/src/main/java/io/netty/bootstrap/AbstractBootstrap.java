@@ -16,16 +16,9 @@
 
 package io.netty.bootstrap;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.DefaultChannelPromise;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ReflectiveChannelFactory;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoop;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -56,9 +49,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     @SuppressWarnings("unchecked")
     private static final Map.Entry<AttributeKey<?>, Object>[] EMPTY_ATTRIBUTE_ARRAY = new Map.Entry[0];
 
-    volatile EventLoopGroup group;
+    volatile EventLoopGroup group;   // 处理连接事件的线程池
     @SuppressWarnings("deprecation")
-    private volatile ChannelFactory<? extends C> channelFactory;
+    private volatile ChannelFactory<? extends C> channelFactory;  // ReflectiveChannelFactory
     private volatile SocketAddress localAddress;
 
     // The order in which ChannelOptions are applied is important they may depend on each other for validation
@@ -304,9 +297,18 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 1. 创建NioServerSocketChannel
+     * 2. 注册NioServerSocketChannel到Selector
+     * @return
+     */
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            /**
+             * 1. 创建channel对象 {@link NioServerSocketChannel}
+             * channelFactory -> {@link ReflectiveChannelFactory}
+             */
             channel = channelFactory.newChannel();
             init(channel);
         } catch (Throwable t) {
@@ -319,7 +321,12 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-
+        /**
+         *  {@link NioEventLoop}
+         * 2. 使用boss中创建的线程， 将channel注册到Selector
+         * {@link SingleThreadEventLoop#register(io.netty.channel.Channel)}
+         * {@link AbstractChannel.AbstractUnsafe#register(io.netty.channel.EventLoop, io.netty.channel.ChannelPromise)}
+         */
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -351,9 +358,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         // the pipeline in its channelRegistered() implementation.
         channel.eventLoop().execute(new Runnable() {
             @Override
-            public void run() {
+            public void run() {           // 通过NioEventLoop线程池，执行该任务
                 if (regFuture.isSuccess()) {
-                    channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+                    channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);  //绑定端口
                 } else {
                     promise.setFailure(regFuture.cause());
                 }

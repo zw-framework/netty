@@ -163,7 +163,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         } else {
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
-            regFuture.addListener(new ChannelFutureListener() {
+            regFuture.addListener(new ChannelFutureListener() {  //客户端注册成功后的监听事件
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     // Directly obtain the cause and do a null check so we only need one volatile read in case of a
@@ -177,7 +177,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
                         // Registration was successful, so set the correct executor to use.
                         // See https://github.com/netty/netty/issues/2586
                         promise.registered();
-                        doResolveAndConnect0(channel, remoteAddress, localAddress, promise);
+                        doResolveAndConnect0(channel, remoteAddress, localAddress, promise);   //客户端连接服务端
                     }
                 }
             });
@@ -245,7 +245,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         final Channel channel = connectPromise.channel();
         channel.eventLoop().execute(new Runnable() {
             @Override
-            public void run() {
+            public void run() {   // 客户端连接服务端
                 if (localAddress == null) {
                     channel.connect(remoteAddress, connectPromise);
                 } else {

@@ -26,7 +26,7 @@ import java.lang.reflect.Constructor;
  */
 public class ReflectiveChannelFactory<T extends Channel> implements ChannelFactory<T> {
 
-    private final Constructor<? extends T> constructor;
+    private final Constructor<? extends T> constructor; // 如：NioServerSocketChannel
 
     public ReflectiveChannelFactory(Class<? extends T> clazz) {
         ObjectUtil.checkNotNull(clazz, "clazz");
