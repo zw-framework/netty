@@ -61,8 +61,8 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private static final AtomicReferenceFieldUpdater<DefaultChannelPipeline, MessageSizeEstimator.Handle> ESTIMATOR =
             AtomicReferenceFieldUpdater.newUpdater(
                     DefaultChannelPipeline.class, MessageSizeEstimator.Handle.class, "estimatorHandle");
-    final AbstractChannelHandlerContext head;
-    final AbstractChannelHandlerContext tail;
+    final AbstractChannelHandlerContext head;   // ChannelHandler链头
+    final AbstractChannelHandlerContext tail;   // ChannelHandler链尾
 
     private final Channel channel;
     private final ChannelFuture succeededFuture;
